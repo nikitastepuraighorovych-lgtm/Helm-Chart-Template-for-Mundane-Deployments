@@ -86,9 +86,17 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           ports:
+            {{- if .Values.service.ports }}
+            {{- range .Values.service.ports }}
+            - name: {{ .name }}
+              containerPort: {{ .port }}
+              protocol: {{ .protocol | default "TCP" }}
+            {{- end }}
+            {{- else }}
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
+            {{- end }}
           {{- if or .Values.configMap.enabled .Values.secret.enabled }}
           envFrom:
             {{- if .Values.configMap.enabled }}

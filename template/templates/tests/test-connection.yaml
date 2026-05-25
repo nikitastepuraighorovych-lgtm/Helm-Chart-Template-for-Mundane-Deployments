@@ -11,7 +11,12 @@ spec:
   containers:
     - name: wget
       image: "{{ .Values.tests.image.repository }}:{{ .Values.tests.image.tag }}"
+      {{- if .Values.service.ports }}
+      command: ['wget']
+      args: ['{{ include "template.fullname" . }}:{{ (index .Values.service.ports 0).port }}']
+      {{- else }}
       command: ['wget']
       args: ['{{ include "template.fullname" . }}:{{ .Values.service.port }}']
+      {{- end }}
   restartPolicy: Never
 {{- end }}

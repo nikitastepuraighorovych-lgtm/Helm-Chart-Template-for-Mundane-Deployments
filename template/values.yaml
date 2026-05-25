@@ -53,7 +53,19 @@ securityContext: {}
 
 service:
   type: ClusterIP
+  # Option 1: Single port (simple)
   port: 80
+  # Option 2: Multiple ports (overrides 'port' above)
+  # ports:
+  #   - name: http
+  #     port: 80
+  #   - name: https
+  #     port: 443
+  #   - name: metrics
+  #     port: 9090
+  #   - name: grpc
+  #     port: 50051
+  #     protocol: TCP
 
 ingress:
   enabled: false

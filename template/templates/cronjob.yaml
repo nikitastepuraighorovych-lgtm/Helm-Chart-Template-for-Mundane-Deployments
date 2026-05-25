@@ -1,0 +1,144 @@
+{{- range .Values.cronJobs }}
+{{- if .enabled }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "template.fullname" $ }}-{{ .name }}
+  labels:
+    {{- include "template.labels" $ | nindent 4 }}
+  {{- with .annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  schedule: {{ .schedule | quote }}
+  {{- if .timeZone }}
+  timeZone: {{ .timeZone | quote }}
+  {{- end }}
+  concurrencyPolicy: {{ .concurrencyPolicy | default "Forbid" }}
+  {{- if .suspend }}
+  suspend: {{ .suspend }}
+  {{- end }}
+  {{- if .successfulJobsHistoryLimit }}
+  successfulJobsHistoryLimit: {{ .successfulJobsHistoryLimit }}
+  {{- end }}
+  {{- if .failedJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .failedJobsHistoryLimit }}
+  {{- end }}
+  {{- if .startingDeadlineSeconds }}
+  startingDeadlineSeconds: {{ .startingDeadlineSeconds }}
+  {{- end }}
+  jobTemplate:
+    spec:
+      {{- if .ttlSecondsAfterFinished }}
+      ttlSecondsAfterFinished: {{ .ttlSecondsAfterFinished }}
+      {{- end }}
+      {{- if .backoffLimit }}
+      backoffLimit: {{ .backoffLimit }}
+      {{- end }}
+      {{- if .activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ .activeDeadlineSeconds }}
+      {{- end }}
+      template:
+        metadata:
+          labels:
+            {{- include "template.selectorLabels" $ | nindent 12 }}
+            cron: {{ .name }}
+          {{- with .podAnnotations }}
+          annotations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        spec:
+          {{- with $.Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          restartPolicy: {{ .restartPolicy | default "Never" }}
+          {{- with $.Values.podSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: {{ .name }}
+              image: "{{ .image.repository }}:{{ .image.tag }}"
+              imagePullPolicy: {{ .image.pullPolicy | default "IfNotPresent" }}
+              {{- with .command }}
+              command:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              {{- with .args }}
+              args:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              {{- with .env }}
+              env:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              {{- if or $.Values.configMap.enabled $.Values.secret.enabled }}
+              envFrom:
+                {{- if $.Values.configMap.enabled }}
+                - configMapRef:
+                    name: {{ include "template.fullname" $ }}
+                {{- end }}
+                {{- if $.Values.secret.enabled }}
+                - secretRef:
+                    name: {{ include "template.fullname" $ }}
+                {{- end }}
+              {{- end }}
+              {{- with .resources }}
+              resources:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              volumeMounts:
+                {{- if $.Values.persistence.enabled }}
+                - name: data
+                  mountPath: {{ $.Values.persistence.mountPath | default "/data" }}
+                {{- end }}
+                {{- if $.Values.configMap.enabled }}
+                - name: config-volume
+                  mountPath: /etc/config
+                  readOnly: true
+                {{- end }}
+                {{- if $.Values.secret.enabled }}
+                - name: secret-volume
+                  mountPath: /etc/secrets
+                  readOnly: true
+                {{- end }}
+                {{- with .volumeMounts }}
+                {{- toYaml . | nindent 16 }}
+                {{- end }}
+          volumes:
+            {{- if $.Values.persistence.enabled }}
+            - name: data
+              persistentVolumeClaim:
+                claimName: {{ include "template.fullname" $ }}-data
+            {{- end }}
+            {{- if $.Values.configMap.enabled }}
+            - name: config-volume
+              configMap:
+                name: {{ include "template.fullname" $ }}
+            {{- end }}
+            {{- if $.Values.secret.enabled }}
+            - name: secret-volume
+              secret:
+                secretName: {{ include "template.fullname" $ }}
+                defaultMode: 0400
+            {{- end }}
+            {{- with .volumes }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with $.Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $.Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $.Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
+{{- end }}

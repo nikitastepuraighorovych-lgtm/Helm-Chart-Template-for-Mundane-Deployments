@@ -1,0 +1,127 @@
+{{- if .Values.job.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "template.fullname" . }}
+  labels:
+    {{- include "template.labels" . | nindent 4 }}
+  {{- with .Values.job.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.job.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ .Values.job.ttlSecondsAfterFinished }}
+  {{- end }}
+  {{- if .Values.job.backoffLimit }}
+  backoffLimit: {{ .Values.job.backoffLimit }}
+  {{- end }}
+  {{- if .Values.job.activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ .Values.job.activeDeadlineSeconds }}
+  {{- end }}
+  {{- if .Values.job.parallelism }}
+  parallelism: {{ .Values.job.parallelism }}
+  {{- end }}
+  {{- if .Values.job.completions }}
+  completions: {{ .Values.job.completions }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "template.selectorLabels" . | nindent 8 }}
+      {{- with .Values.job.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      restartPolicy: {{ .Values.job.restartPolicy | default "Never" }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}-job
+          image: "{{ .Values.job.image.repository }}:{{ .Values.job.image.tag }}"
+          imagePullPolicy: {{ .Values.job.image.pullPolicy | default "IfNotPresent" }}
+          {{- with .Values.job.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.job.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.job.env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if or .Values.configMap.enabled .Values.secret.enabled }}
+          envFrom:
+            {{- if .Values.configMap.enabled }}
+            - configMapRef:
+                name: {{ include "template.fullname" . }}
+            {{- end }}
+            {{- if .Values.secret.enabled }}
+            - secretRef:
+                name: {{ include "template.fullname" . }}
+            {{- end }}
+          {{- end }}
+          {{- with .Values.job.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            {{- if .Values.persistence.enabled }}
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath | default "/data" }}
+            {{- end }}
+            {{- if .Values.configMap.enabled }}
+            - name: config-volume
+              mountPath: /etc/config
+              readOnly: true
+            {{- end }}
+            {{- if .Values.secret.enabled }}
+            - name: secret-volume
+              mountPath: /etc/secrets
+              readOnly: true
+            {{- end }}
+            {{- with .Values.job.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "template.fullname" . }}-data
+        {{- end }}
+        {{- if .Values.configMap.enabled }}
+        - name: config-volume
+          configMap:
+            name: {{ include "template.fullname" . }}
+        {{- end }}
+        {{- if .Values.secret.enabled }}
+        - name: secret-volume
+          secret:
+            secretName: {{ include "template.fullname" . }}
+            defaultMode: 0400
+        {{- end }}
+        {{- with .Values.job.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

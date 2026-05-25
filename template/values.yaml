@@ -555,3 +555,33 @@ cronJobs: []
   #   podAnnotations: {}
   #   volumeMounts: []
   #   volumes: []
+
+
+# STATEFULSET
+# When enabled, Deployment and standalone PVC are disabled.
+# Each pod gets its own persistent volume via volumeClaimTemplates.
+statefulSet:
+  enabled: false
+
+  # OrderedReady (default) = start/stop pods one by one in order
+  # Parallel = start/stop all pods at the same time
+  podManagementPolicy: OrderedReady
+
+  # RollingUpdate (default) = update pods one by one
+  # OnDelete = only update when pod is manually deleted
+  updateStrategy:
+    type: RollingUpdate
+
+  # Per-pod persistent volumes
+  # Each pod gets its own PVC: data-my-app-0, data-my-app-1, etc.
+  volumeClaimTemplates: []
+    # - name: data
+    #   mountPath: /data
+    #   size: 10Gi
+    #   accessMode: ReadWriteOnce
+    #   # storageClass: "gp3"
+    #
+    # - name: logs
+    #   mountPath: /var/log/app
+    #   size: 5Gi
+    #   accessMode: ReadWriteOnce

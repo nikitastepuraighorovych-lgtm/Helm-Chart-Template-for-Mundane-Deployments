@@ -1,13 +1,21 @@
-{{- if not .Values.statefulSet.enabled }}
+{{- if .Values.statefulSet.enabled }}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ include "template.fullname" . }}
   labels:
     {{- include "template.labels" . | nindent 4 }}
 spec:
+  serviceName: {{ include "template.fullname" . }}-headless
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  {{- with .Values.statefulSet.updateStrategy }}
+  updateStrategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if .Values.statefulSet.podManagementPolicy }}
+  podManagementPolicy: {{ .Values.statefulSet.podManagementPolicy }}
   {{- end }}
   selector:
     matchLabels:
@@ -112,11 +120,11 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if or .Values.persistence.enabled .Values.configMap.enabled .Values.secret.enabled .Values.sharedVolume.enabled .Values.volumeMounts }}
+          {{- if or .Values.statefulSet.volumeClaimTemplates .Values.configMap.enabled .Values.secret.enabled .Values.sharedVolume.enabled .Values.volumeMounts }}
           volumeMounts:
-            {{- if .Values.persistence.enabled }}
-            - name: data
-              mountPath: {{ .Values.persistence.mountPath | default "/data" }}
+            {{- range .Values.statefulSet.volumeClaimTemplates }}
+            - name: {{ .name }}
+              mountPath: {{ .mountPath }}
             {{- end }}
             {{- if .Values.configMap.enabled }}
             - name: config-volume
@@ -165,13 +173,8 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
         {{- end }}
-      {{- if or .Values.persistence.enabled .Values.sharedVolume.enabled .Values.configMap.enabled .Values.secret.enabled .Values.volumes }}
+      {{- if or .Values.sharedVolume.enabled .Values.configMap.enabled .Values.secret.enabled .Values.volumes }}
       volumes:
-        {{- if .Values.persistence.enabled }}
-        - name: data
-          persistentVolumeClaim:
-            claimName: {{ include "template.fullname" . }}-data
-        {{- end }}
         {{- if .Values.sharedVolume.enabled }}
         - name: shared
           emptyDir: {}
@@ -203,4 +206,20 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+  {{- if .Values.statefulSet.volumeClaimTemplates }}
+  volumeClaimTemplates:
+    {{- range .Values.statefulSet.volumeClaimTemplates }}
+    - metadata:
+        name: {{ .name }}
+      spec:
+        accessModes:
+          - {{ .accessMode | default "ReadWriteOnce" }}
+        {{- if .storageClass }}
+        storageClassName: {{ .storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .size | default "1Gi" }}
+    {{- end }}
+  {{- end }}
 {{- end }}

@@ -77,7 +77,8 @@ ingress:
     - host: chart-example.local
       paths:
         - path: /
-          pathType: ImplementationSpecific
+          pathType: Prefix
+          port: 6767
   tls: []
     # - secretName: chart-example-tls
     #   hosts:

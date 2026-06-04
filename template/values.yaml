@@ -1,5 +1,18 @@
+# ============================================================
+#  BASIC / GLOBAL
+# ============================================================
+
 replicaCount: 1
-# PRIMARY CONTAINER
+
+nameOverride: ""
+fullnameOverride: ""
+
+imagePullSecrets: []
+
+# ============================================================
+#  PRIMARY CONTAINER
+# ============================================================
+
 image:
   repository: busybox
   tag: "1.36"
@@ -20,9 +33,172 @@ command:
 #   - "--verbose"
 args: []
 
-imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
+# Inline environment variables for the primary container.
+env: []
+  # - name: MY_VAR
+  #   value: "hello"
+  # - name: SECRET_FROM_K8S
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: my-external-secret
+  #       key: password
+
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# Probes — disabled by default for busybox.
+# Enable these when using an image that serves HTTP (nginx, your app, etc.)
+livenessProbe: {}
+  # httpGet:
+  #   path: /
+  #   port: http
+readinessProbe: {}
+  # httpGet:
+  #   path: /
+  #   port: http
+startupProbe: {}
+  # httpGet:
+  #   path: /
+  #   port: http
+  # failureThreshold: 30
+  # periodSeconds: 10
+
+# Additional volumes on the output Deployment definition.
+volumes: []
+  # - name: foo
+  #   secret:
+  #     secretName: mysecret
+  #     optional: false
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts: []
+  # - name: foo
+  #   mountPath: "/etc/foo"
+  #   readOnly: true
+
+# ============================================================
+#  INIT CONTAINERS (run BEFORE main, sequentially)
+# ============================================================
+
+initContainers: []
+  # - name: init-permissions
+  #   image:
+  #     repository: busybox
+  #     tag: "1.36"
+  #     pullPolicy: IfNotPresent
+  #   command:
+  #     - sh
+  #     - -c
+  #     - |
+  #       echo "Setting up data directory..."
+  #       mkdir -p /data/app
+  #       chmod -R 777 /data/app
+  #   volumeMounts:
+  #     - name: data
+  #       mountPath: /data
+  #   resources:
+  #     limits:
+  #       cpu: 100m
+  #       memory: 64Mi
+  #
+  # - name: wait-for-db
+  #   image:
+  #     repository: busybox
+  #     tag: "1.36"
+  #     pullPolicy: IfNotPresent
+  #   command:
+  #     - sh
+  #     - -c
+  #     - |
+  #       echo "Waiting for database..."
+  #       until nc -z my-database 5432; do
+  #         echo "DB not ready, sleeping..."
+  #         sleep 2
+  #       done
+  #       echo "DB is ready!"
+  #   resources:
+  #     limits:
+  #       cpu: 100m
+  #       memory: 64Mi
+  #
+  # - name: init-config
+  #   image:
+  #     repository: busybox
+  #     tag: "1.36"
+  #     pullPolicy: IfNotPresent
+  #   command:
+  #     - sh
+  #     - -c
+  #     - |
+  #       echo "Downloading config..."
+  #       wget -O /shared/config.json https://example.com/config.json || \
+  #       echo '{"default": true}' > /shared/config.json
+  #   volumeMounts:
+  #     - name: shared
+  #       mountPath: /shared
+  #   resources:
+  #     limits:
+  #       cpu: 100m
+  #       memory: 64Mi
+
+# ============================================================
+#  SIDECAR CONTAINERS (run ALONGSIDE main)
+# ============================================================
+
+sidecarContainers: []
+  # - name: log-shipper
+  #   image:
+  #     repository: busybox
+  #     tag: "1.36"
+  #     pullPolicy: IfNotPresent
+  #   command:
+  #     - sh
+  #     - -c
+  #     - |
+  #       echo "Tailing logs from shared volume..."
+  #       tail -F /data/app/logs/*.log 2>/dev/null || \
+  #       while true; do
+  #         echo "[log-shipper] waiting for logs..."
+  #         sleep 10
+  #       done
+  #   volumeMounts:
+  #     - name: data
+  #       mountPath: /data
+  #   resources:
+  #     limits:
+  #       cpu: 100m
+  #       memory: 64Mi
+  #
+  # - name: watchdog
+  #   image:
+  #     repository: busybox
+  #     tag: "1.36"
+  #     pullPolicy: IfNotPresent
+  #   command:
+  #     - sh
+  #     - -c
+  #     - |
+  #       while true; do
+  #         if wget -q -O /dev/null http://localhost:80/health; then
+  #           echo "[watchdog] App is healthy"
+  #         else
+  #           echo "[watchdog] App is NOT healthy!"
+  #         fi
+  #         sleep 30
+  #       done
+  #   resources:
+  #     limits:
+  #       cpu: 50m
+  #       memory: 32Mi
+
+# ============================================================
+#  SERVICE ACCOUNT
+# ============================================================
 
 serviceAccount:
   # Specifies whether a service account should be created.
@@ -34,6 +210,10 @@ serviceAccount:
   # The name of the service account to use.
   # If not set and create is true, a name is generated using the fullname template.
   name: ""
+
+# ============================================================
+#  POD METADATA & SECURITY
+# ============================================================
 
 # This is for setting Kubernetes Annotations to a Pod.
 podAnnotations: {}
@@ -50,6 +230,10 @@ securityContext: {}
   # readOnlyRootFilesystem: true
   # runAsNonRoot: true
   # runAsUser: 1000
+
+# ============================================================
+#  NETWORKING (Service / Ingress / HTTPRoute)
+# ============================================================
 
 service:
   type: ClusterIP
@@ -120,189 +304,9 @@ httpRoute:
   #     - name: version
   #       value: v2
 
-resources: {}
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
-# Probes — disabled by default for busybox.
-# Enable these when using an image that serves HTTP (nginx, your app, etc.)
-livenessProbe: {}
-  # httpGet:
-  #   path: /
-  #   port: http
-readinessProbe: {}
-  # httpGet:
-  #   path: /
-  #   port: http
-startupProbe: {}
-  # httpGet:
-  #   path: /
-  #   port: http
-  # failureThreshold: 30
-  # periodSeconds: 10
-
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
-
-# Additional volumes on the output Deployment definition.
-volumes: []
-  # - name: foo
-  #   secret:
-  #     secretName: mysecret
-  #     optional: false
-
-# Additional volumeMounts on the output Deployment definition.
-volumeMounts: []
-  # - name: foo
-  #   mountPath: "/etc/foo"
-  #   readOnly: true
-
-# Inline environment variables for the primary container.
-env: []
-  # - name: MY_VAR
-  #   value: "hello"
-  # - name: SECRET_FROM_K8S
-  #   valueFrom:
-  #     secretKeyRef:
-  #       name: my-external-secret
-  #       key: password
-
-
-# PERSISTENCE (PVC)
-persistence:
-  enabled: false
-  accessMode: ReadWriteOnce
-  size: 1Gi
-  mountPath: /data
-  # storageClass: ""
-
-
-# SHARED emptyDir VOLUME (between containers)
-sharedVolume:
-  enabled: false
-
-
-# INIT CONTAINERS (run BEFORE main, sequentially)
-initContainers: []
-  # - name: init-permissions
-  #   image:
-  #     repository: busybox
-  #     tag: "1.36"
-  #     pullPolicy: IfNotPresent
-  #   command:
-  #     - sh
-  #     - -c
-  #     - |
-  #       echo "Setting up data directory..."
-  #       mkdir -p /data/app
-  #       chmod -R 777 /data/app
-  #   volumeMounts:
-  #     - name: data
-  #       mountPath: /data
-  #   resources:
-  #     limits:
-  #       cpu: 100m
-  #       memory: 64Mi
-  #
-  # - name: wait-for-db
-  #   image:
-  #     repository: busybox
-  #     tag: "1.36"
-  #     pullPolicy: IfNotPresent
-  #   command:
-  #     - sh
-  #     - -c
-  #     - |
-  #       echo "Waiting for database..."
-  #       until nc -z my-database 5432; do
-  #         echo "DB not ready, sleeping..."
-  #         sleep 2
-  #       done
-  #       echo "DB is ready!"
-  #   resources:
-  #     limits:
-  #       cpu: 100m
-  #       memory: 64Mi
-  #
-  # - name: init-config
-  #   image:
-  #     repository: busybox
-  #     tag: "1.36"
-  #     pullPolicy: IfNotPresent
-  #   command:
-  #     - sh
-  #     - -c
-  #     - |
-  #       echo "Downloading config..."
-  #       wget -O /shared/config.json https://example.com/config.json || \
-  #       echo '{"default": true}' > /shared/config.json
-  #   volumeMounts:
-  #     - name: shared
-  #       mountPath: /shared
-  #   resources:
-  #     limits:
-  #       cpu: 100m
-  #       memory: 64Mi
-
-
-# SIDECAR CONTAINERS (run ALONGSIDE main)
-
-sidecarContainers: []
-  # - name: log-shipper
-  #   image:
-  #     repository: busybox
-  #     tag: "1.36"
-  #     pullPolicy: IfNotPresent
-  #   command:
-  #     - sh
-  #     - -c
-  #     - |
-  #       echo "Tailing logs from shared volume..."
-  #       tail -F /data/app/logs/*.log 2>/dev/null || \
-  #       while true; do
-  #         echo "[log-shipper] waiting for logs..."
-  #         sleep 10
-  #       done
-  #   volumeMounts:
-  #     - name: data
-  #       mountPath: /data
-  #   resources:
-  #     limits:
-  #       cpu: 100m
-  #       memory: 64Mi
-  #
-  # - name: watchdog
-  #   image:
-  #     repository: busybox
-  #     tag: "1.36"
-  #     pullPolicy: IfNotPresent
-  #   command:
-  #     - sh
-  #     - -c
-  #     - |
-  #       while true; do
-  #         if wget -q -O /dev/null http://localhost:80/health; then
-  #           echo "[watchdog] App is healthy"
-  #         else
-  #           echo "[watchdog] App is NOT healthy!"
-  #         fi
-  #         sleep 30
-  #       done
-  #   resources:
-  #     limits:
-  #       cpu: 50m
-  #       memory: 32Mi
-
-
-# CONFIGMAP
+# ============================================================
+#  CONFIGMAP
+# ============================================================
 
 configMap:
   enabled: false
@@ -343,8 +347,9 @@ configMap:
   # filesGlob: "config/*"
   filesGlob: ""
 
-
-# SECRET
+# ============================================================
+#  SECRET
+# ============================================================
 
 secret:
   enabled: false
@@ -388,7 +393,35 @@ secret:
   # filesGlob: "secrets/*"
   filesGlob: ""
 
-# SCHEDULING
+# ============================================================
+#  PERSISTENCE (PVC)
+# ============================================================
+
+persistence:
+  enabled: false
+  accessMode: ReadWriteOnce
+  size: 1Gi
+  mountPath: /data
+  # storageClass: ""
+
+# SHARED emptyDir VOLUME (between containers)
+sharedVolume:
+  enabled: false
+
+# ============================================================
+#  AUTOSCALING
+# ============================================================
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+# ============================================================
+#  SCHEDULING
+# ============================================================
 
 nodeSelector: {}
   # kubernetes.io/os: linux
@@ -417,14 +450,41 @@ affinity: {}
   #             app: my-app
   #         topologyKey: kubernetes.io/hostname
 
-tests:
+# ============================================================
+#  STATEFULSET
+# ============================================================
+# When enabled, Deployment and standalone PVC are disabled.
+# Each pod gets its own persistent volume via volumeClaimTemplates.
+
+statefulSet:
   enabled: false
-  image:
-    repository: busybox
-    tag: "1.36"
 
+  # OrderedReady (default) = start/stop pods one by one in order
+  # Parallel = start/stop all pods at the same time
+  podManagementPolicy: OrderedReady
 
-# JOB (one-time task)
+  # RollingUpdate (default) = update pods one by one
+  # OnDelete = only update when pod is manually deleted
+  updateStrategy:
+    type: RollingUpdate
+
+  # Per-pod persistent volumes
+  # Each pod gets its own PVC: data-my-app-0, data-my-app-1, etc.
+  volumeClaimTemplates: []
+    # - name: data
+    #   mountPath: /data
+    #   size: 10Gi
+    #   accessMode: ReadWriteOnce
+    #   # storageClass: "gp3"
+    #
+    # - name: logs
+    #   mountPath: /var/log/app
+    #   size: 5Gi
+    #   accessMode: ReadWriteOnce
+
+# ============================================================
+#  JOB (one-time task)
+# ============================================================
 
 job:
   enabled: false
@@ -469,12 +529,13 @@ job:
   volumeMounts: []
   volumes: []
 
-
-# CRONJOBS (scheduled recurring tasks)
+# ============================================================
+#  CRONJOBS (scheduled recurring tasks)
+# ============================================================
 # Multiple cronjobs supported — each entry is independent.
 
 cronJobs: []
-  #  Example 1: Database backup every night at 2am 
+  #  Example 1: Database backup every night at 2am
   # - name: db-backup
   #   enabled: true
   #   schedule: "0 2 * * *"
@@ -513,7 +574,7 @@ cronJobs: []
   #   volumeMounts: []
   #   volumes: []
   #
-  #  Example 2: Cache cleanup every hour 
+  #  Example 2: Cache cleanup every hour
   # - name: cache-cleanup
   #   enabled: true
   #   schedule: "0 * * * *"
@@ -542,7 +603,7 @@ cronJobs: []
   #   volumeMounts: []
   #   volumes: []
   #
-  #  Example 3: Health report every 6 hours 
+  #  Example 3: Health report every 6 hours
   # - name: health-report
   #   enabled: false           # ← disabled individually
   #   schedule: "0 */6 * * *"
@@ -569,32 +630,12 @@ cronJobs: []
   #   volumeMounts: []
   #   volumes: []
 
+# ============================================================
+#  TESTS
+# ============================================================
 
-# STATEFULSET
-# When enabled, Deployment and standalone PVC are disabled.
-# Each pod gets its own persistent volume via volumeClaimTemplates.
-statefulSet:
+tests:
   enabled: false
-
-  # OrderedReady (default) = start/stop pods one by one in order
-  # Parallel = start/stop all pods at the same time
-  podManagementPolicy: OrderedReady
-
-  # RollingUpdate (default) = update pods one by one
-  # OnDelete = only update when pod is manually deleted
-  updateStrategy:
-    type: RollingUpdate
-
-  # Per-pod persistent volumes
-  # Each pod gets its own PVC: data-my-app-0, data-my-app-1, etc.
-  volumeClaimTemplates: []
-    # - name: data
-    #   mountPath: /data
-    #   size: 10Gi
-    #   accessMode: ReadWriteOnce
-    #   # storageClass: "gp3"
-    #
-    # - name: logs
-    #   mountPath: /var/log/app
-    #   size: 5Gi
-    #   accessMode: ReadWriteOnce
+  image:
+    repository: busybox
+    tag: "1.36"

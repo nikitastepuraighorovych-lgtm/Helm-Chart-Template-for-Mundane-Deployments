@@ -442,8 +442,3 @@ helm uninstall my-release
 
 Do whatever you want with it.
 
----
-
-## Author
-
-Nikita Stepura -- nikitastepuraighorovych@gmail.com
